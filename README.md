@@ -1,1 +1,1 @@
-Music Player Wrotten with QT
+Music Player Written with QT
