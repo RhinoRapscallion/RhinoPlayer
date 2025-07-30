@@ -1,5 +1,8 @@
 #include "musicplayer.h"
 #include <QAudioOutput>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QCoreApplication>
 
 MusicPlayer::MusicPlayer(QObject *parent)
     : QObject{parent}
@@ -8,9 +11,40 @@ MusicPlayer::MusicPlayer(QObject *parent)
 
     QObject::connect(&player, &QMediaPlayer::mediaStatusChanged, this, &MusicPlayer::mediaStatusChanged);
     QObject::connect(&player, &QMediaPlayer::positionChanged, this, [=](qint64 position) { emit mediaProgress(position, player.duration()); });
-    QObject::connect(&player, &QMediaPlayer::playbackStateChanged, this, &MusicPlayer::playbackStateChanged);
+    QObject::connect(&player, &QMediaPlayer::playbackStateChanged, &mpris, &MprisController::playbackStateChanged);
     queue.setPlayingIndex(-1);
     queueIdx = -1;
+
+    QObject::connect(&player, &QMediaPlayer::playbackStateChanged, this, &MusicPlayer::playbackStateChanged);
+
+    QObject::connect(this, &MusicPlayer::mediaProgress, &mpris, &MprisController::positionChanged);
+    QObject::connect(this, &MusicPlayer::mediaLoaded,   &mpris, &MprisController::mediaLoaded);
+    QObject::connect(this, &MusicPlayer::noMedia,   &mpris, &MprisController::noMedia);
+
+    QObject::connect(&mpris, &MprisController::playPause, this, &MusicPlayer::playPause);
+    QObject::connect(&mpris, &MprisController::play,      this, &MusicPlayer::play);
+    QObject::connect(&mpris, &MprisController::pause,     this, &MusicPlayer::pause);
+    QObject::connect(&mpris, &MprisController::stop,      this, &MusicPlayer::stop);
+    QObject::connect(&mpris, &MprisController::next,      this, &MusicPlayer::next);
+    QObject::connect(&mpris, &MprisController::prev,      this, &MusicPlayer::prev);
+    QObject::connect(&mpris, &MprisController::seek,      this, &MusicPlayer::seek);
+    QObject::connect(&mpris, &MprisController::relSeek,   this, &MusicPlayer::relSeek);
+
+    QObject::connect(&mpris, &MprisController::setShuffle, this, &MusicPlayer::setShuffle);
+    QObject::connect(&mpris, &MprisController::setLoop,    this, &MusicPlayer::setRepeat);
+    QObject::connect(&mpris, &MprisController::setVolume,  this, &MusicPlayer::setVolume);
+
+    QObject::connect(this, &MusicPlayer::repeatModeChanged, &mpris, &MprisController::loopSet);
+    QObject::connect(this, &MusicPlayer::shuffleChanged,    &mpris, &MprisController::shuffleSet);
+    QObject::connect(this, &MusicPlayer::volumeChanged,     &mpris, &MprisController::volumeSet);
+
+    QObject::connect(this, &MusicPlayer::seeked, &mpris, &MprisController::seeked);
+}
+
+MusicPlayer::~MusicPlayer()
+{
+    int proc = QCoreApplication::applicationPid();
+    QDBusConnection::disconnectFromBus(QString("org.mpris.MediaPlayer.RhinoMusic.pid%1").arg(proc));
 }
 
 // Adds a song to the queue
@@ -59,8 +93,30 @@ void MusicPlayer::playPause()
     else
     {
         if (player.isPlaying()) player.pause();
-        else player.play();
+        else
+        {
+            player.play();
+            player.setPosition(player.position());
+        }
     }
+}
+
+void MusicPlayer::pause()
+{
+    if (player.isPlaying()) playPause();
+}
+
+void MusicPlayer::play()
+{
+    if (!player.isPlaying()) playPause();
+}
+
+void MusicPlayer::stop()
+{
+    queueIdx = -1;
+    emit queueIndexChanged(-1);
+    queue.setPlayingIndex(-1);
+    player.setSource(QUrl());
 }
 
 // Handles the player states
@@ -153,11 +209,31 @@ int MusicPlayer::cycleRepeat()
     return repeat;
 }
 
+int MusicPlayer::setRepeat(int repeatMode)
+{
+    switch (repeatMode)
+    {
+    case RepeatMode::RepeatOff:
+    case RepeatMode::RepeatShuffle:
+    case RepeatMode::RepeatPlaylist:
+    case RepeatMode::RepeatSong:
+        repeat = repeatMode;
+        break;
+
+    default:
+        break;
+    }
+
+    emit repeatModeChanged(repeat);
+    return repeat;
+}
+
 // handles traversing backwards in the queue
 // will restart the current song if more than 1% through
 // else will load the previous song
 void MusicPlayer::prev()
 {
+    if (queueIdx < 0) { return; }
     if (player.position() < player.duration() * 0.01)
     {
         queueIdx -= 1;
@@ -183,9 +259,21 @@ void MusicPlayer::playSong(int plstIdx)
 }
 
 // sets the playing position, calls internal player function
-void MusicPlayer::seek(int position)
+void MusicPlayer::seek(qint64 position)
 {
     player.setPosition(position);
+    emit seeked(player.position());
+}
+
+void MusicPlayer::relSeek(qint64 offset)
+{
+    if (player.position() + offset < 0)
+    { player.setPosition(0); }
+    else if (player.position() + offset > player.duration())
+    { next(); }
+    else { player.setPosition(player.position() + offset); }
+
+    emit seeked(player.position());
 }
 
 // Returns the shuffle state of the player
@@ -215,6 +303,7 @@ void MusicPlayer::setShuffle(bool _shuffle)
 
     queue.setPlayingIndex(queueIdx);
 
+    emit shuffleChanged(shuffle);
     emit queueIndexChanged(queueIdx);
 }
 
@@ -255,4 +344,11 @@ bool MusicPlayer::clearQueue()
 bool MusicPlayer::playing()
 {
     return player.isPlaying();
+}
+
+// Sets the volume of the internal music player
+void MusicPlayer::setVolume(int newVolume)
+{
+    player.audioOutput()->setVolume(newVolume / 100.0);
+    emit volumeChanged(newVolume);
 }

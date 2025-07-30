@@ -75,7 +75,7 @@ bool MusicDatabase::connectToDatabase(QString databaseFilePath)
     //if (verifyRecord.count() != 7) { valid = false; db.close(); return false; };
     QStringList verifyColumns;
 
-    for (int i = verifyRecord.count(); i > 0; i--) { verifyColumns << verifyRecord.fieldName(i); }
+    for (int i = verifyRecord.count(); i > 0; i--) { verifyColumns << verifyRecord.fieldName(i-1); }
 
     if (!(verifyColumns.contains("Image" )  &&
           verifyColumns.contains("Artist")  &&
@@ -83,7 +83,12 @@ bool MusicDatabase::connectToDatabase(QString databaseFilePath)
           verifyColumns.contains("Album" )  &&
           verifyColumns.contains("Track" )  &&
           verifyColumns.contains("Title" )  &&
-          verifyColumns.contains("File"  )))
+          verifyColumns.contains("File"  )  &&
+          verifyColumns.contains("Duration")))
+    {
+        valid = false;
+        return false;
+    }
 
     // Return True if DB validated
     valid = true;
@@ -113,7 +118,7 @@ bool MusicDatabase::createDatabase(QString databaseFilePath)
     }
 
     // Create Tables
-    QSqlQuery("CREATE TABLE Songs (Image TEXT COLLATE NOCASE, Artist TEXT COLLATE NOCASE, ContributingArtist TEXT COLLATE NOCASE, Album TEXT COLLATE NOCASE, Track int, Title TEXT, File TEXT PRIMARY KEY)");
+    QSqlQuery("CREATE TABLE Songs (Image TEXT COLLATE NOCASE, Artist TEXT COLLATE NOCASE, ContributingArtist TEXT COLLATE NOCASE, Album TEXT COLLATE NOCASE, Track int, Title TEXT, File TEXT PRIMARY KEY, Duration int)");
 
     qDebug() << (db.tables());
 
@@ -169,8 +174,8 @@ void MusicDatabase::scanMedia(QMediaPlayer::MediaStatus status)
     // Prepare INSERT into database
     QSqlQuery query;
     query.prepare("INSERT OR REPLACE INTO "
-                  "Songs  ( Image,  Artist,  ContributingArtist,  Album,  Track,  Title,  File) "
-                  "VALUES (:image, :artist, :contributingArtist, :album, :track, :title, :file)");
+                  "Songs  ( Image,  Artist,  ContributingArtist,  Album,  Track,  Title,  File,  Duration) "
+                  "VALUES (:image, :artist, :contributingArtist, :album, :track, :title, :file, :duration);");
 
     // Album and artist cannot be determined from filename at the current moment in time
     // Will likely support artist/album/## song.ext folder structure
@@ -234,6 +239,8 @@ void MusicDatabase::scanMedia(QMediaPlayer::MediaStatus status)
     }
 
     query.bindValue(":image", filename);
+
+    query.bindValue(":duration", metaData.value(metaData.Duration).toInt());
 
     qDebug() << query.boundValues();
     qDebug() << query.boundValueNames();
@@ -437,6 +444,7 @@ Song MusicDatabase::getSong(int idx)
     int fileIndex = query.record().indexOf("File");
     int trackIndex = query.record().indexOf("Track");
     int imageIndex = query.record().indexOf("Image");
+    int durationIndex = query.record().indexOf("Duration");
 
     if (query.seek(idx))
     {
@@ -448,7 +456,8 @@ Song MusicDatabase::getSong(int idx)
             query.value(titleIndex).toString(),
             query.value(fileIndex).toString(),
             query.value(imageIndex).toString(),
-            track < 0 ? 0 : track
+            track < 0 ? 0 : track,
+            query.value(durationIndex).toInt()
         };
     }
     else
@@ -484,6 +493,7 @@ QList<Song> MusicDatabase::getSongs()
     int fileIndex = query.record().indexOf("File");
     int trackIndex = query.record().indexOf("Track");
     int imageIndex = query.record().indexOf("Image");
+    int durationIndex = query.record().indexOf("Duration");
 
     while (query.next())
     {
@@ -496,7 +506,8 @@ QList<Song> MusicDatabase::getSongs()
                 query.value(titleIndex).toString(),
                 query.value(fileIndex).toString(),
                 query.value(imageIndex).toString(),
-                track < 0 ? 0 : track
+                track < 0 ? 0 : track,
+                query.value(durationIndex).toInt()
         });
     }
 
@@ -516,7 +527,7 @@ void MusicDatabase::setAlbum(QString album){
 bool MusicDatabase::filteredByArtist()
 {
     return !filterArtist.isEmpty();
-}
+}    void mediaProgress(qint64 position, qint64 duration);
 
 bool MusicDatabase::filteredByAlbum()
 {

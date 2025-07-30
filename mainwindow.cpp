@@ -72,6 +72,10 @@ MainWindow::MainWindow(QWidget *parent)
         ui->Playlist->clearSelection();
     });
 
+    // Setup Volume Slider
+    QObject::connect(ui->volumeSlider, &QAbstractSlider::valueChanged, &player, &MusicPlayer::setVolume);
+    QObject::connect(&player, &MusicPlayer::volumeChanged, this, &MainWindow::volumeChanged);
+
     // Sets up the progress bar
     QObject::connect(&player, &MusicPlayer::mediaProgress, this, [=](qint64 pos, qint64 total) {
         ui->infoProgress->setMaximum(total);
@@ -87,9 +91,10 @@ MainWindow::MainWindow(QWidget *parent)
         ui->infoArtist->setText("");
     });
 
-    // Changes button text
+    // Changes button text & colors;
     QObject::connect(&player, &MusicPlayer::playbackStateChanged, this, &MainWindow::playbackStateChanged);
-    QObject::connect(&player, &MusicPlayer::repeatModeChanged, this, &MainWindow::repeatModeChanged);
+    QObject::connect(&player, &MusicPlayer::repeatModeChanged,    this, &MainWindow::repeatModeChanged);
+    QObject::connect(&player, &MusicPlayer::shuffleChanged,       this, &MainWindow::shuffleChanged);
 
     // Playback controls
     QObject::connect(ui->playPause, &QPushButton::clicked, &player, &MusicPlayer::playPause);
@@ -97,10 +102,7 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(ui->nextSong, &QPushButton::clicked, &player, &MusicPlayer::next);
     QObject::connect(ui->infoProgress, &QAbstractSlider::sliderMoved, &player, &MusicPlayer::seek);
     QObject::connect(ui->repeat, &QPushButton::clicked, this, [=](){ player.cycleRepeat(); });
-    QObject::connect(ui->shuffle, &QPushButton::clicked, this, [=](){
-        player.setShuffle(!player.isShuffled());
-        ui->shuffle->setStyleSheet(player.isShuffled() ? "color: rgb(85, 255, 0);" : "");
-    });
+    QObject::connect(ui->shuffle, &QPushButton::clicked, this, [=](){ player.setShuffle(!player.isShuffled()); });
 
     QObject::connect(&db, &MusicDatabase::scanComplete, this, [=](){
         ui->statusbar->clearMessage();
@@ -211,34 +213,6 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// Handles reseting tab views on double click
-// clicking on a tab displays all artist / albums / songs
-// this behavior may change
-
-void MainWindow::tabChanged(int tab)
-{
-    switch (tab)
-    {
-    case 0:
-        artistModel.setStringList(db.getArtists());
-        break;
-
-    case 1:
-        db.setArtist();
-        albumModel.setStringList(db.getAlbums());
-        break;
-
-    case 2:
-        db.setArtist();
-        db.setAlbum();
-        songModel.setStringList(db.getSongNames());
-        break;
-
-    default:
-        break;
-    }
-}
-
 // Used to show albums, argument filters the albums to a single artist
 void MainWindow::showAlbums(QModelIndex indexOfArtist)
 {
@@ -342,4 +316,14 @@ void MainWindow::repeatModeChanged(int repeatMode)
         ui->repeat->setStyleSheet("");
         break;
     }
+}
+
+void MainWindow::shuffleChanged(bool shuffle)
+{
+    ui->shuffle->setStyleSheet(shuffle ? "color: rgb(85, 255, 0);" : "");
+}
+
+void MainWindow::volumeChanged(qint64 volume)
+{
+    ui->volumeSlider->setValue(volume);
 }

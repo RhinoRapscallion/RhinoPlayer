@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>RhinoMusic Icon.png</file>
+    </qresource>
+</RCC>

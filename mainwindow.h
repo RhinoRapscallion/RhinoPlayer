@@ -50,7 +50,6 @@ private:
 
 
 private slots:
-    void tabChanged(int tab);
     void showArtists();
     void showAlbums(QModelIndex indexOfArtist);
 
@@ -59,6 +58,9 @@ private slots:
 
     void mediaLoaded(const Song &song, int dynPlstIdx);
     void playbackStateChanged(QMediaPlayer::PlaybackState state);
+
     void repeatModeChanged(int repeatMode);
+    void shuffleChanged(bool shuffle);
+    void volumeChanged(qint64 volume);
 };
 #endif // MAINWINDOW_H

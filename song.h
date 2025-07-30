@@ -12,6 +12,7 @@ struct Song
     QString file;
     QString image;
     int track;
+    int duration;
 };
 
 #endif // SONG_H

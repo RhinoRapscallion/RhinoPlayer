@@ -13,6 +13,7 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Multimedia)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Sql)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS DBus)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -23,6 +24,10 @@ set(PROJECT_SOURCES
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Core)
@@ -37,6 +42,14 @@ find_package(Qt6 REQUIRED COMPONENTS Core)
         songqueuemodel.h songqueuemodel.cpp
         placeholderArt.qrc
         placeholderArt.qrc
+
+        mpriscontroller.h mpriscontroller.cpp
+        mprisdbusinterface.h mprisdbusinterface.cpp
+        mprisdbusplayerinterface.h mprisdbusplayerinterface.cpp
+        icon.qrc
+
+
+
 
     )
 # Define target properties for Android with Qt 6 as:
@@ -57,7 +70,11 @@ else()
     endif()
 endif()
 
-target_link_libraries(RhinoMusic PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Multimedia Qt${QT_VERSION_MAJOR}::Sql)
+target_link_libraries(RhinoMusic PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Multimedia Qt${QT_VERSION_MAJOR}::Sql Qt${QT_VERSION_MAJOR}::DBus)
+target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
+target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
+target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
+target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
 target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
 target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
 target_link_libraries(RhinoMusic PRIVATE Qt6::Core)
